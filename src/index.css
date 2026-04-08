@@ -1,0 +1,206 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;600&display=swap&subset=korean');
+
+@theme {
+  --color-primary-50:  #EAF3FA;
+  --color-primary-100: #D3E8F5;
+  --color-primary-200: #B5D5EE;
+  --color-primary-400: #89BCE2;
+  --color-primary-600: #5A9AC8;
+  --color-primary-800: #3A7AAE;
+  --color-primary-900: #2A5C88;
+
+  --color-accent-400: #5A9AC8;
+  --color-accent-600: #3A7AAE;
+
+  --color-surface:     #F5F8FB;
+  --color-border:      #D8E8F4;
+}
+
+html {
+  /* 화면 너비에 따라 베이스 폰트 크기 조정: 300px→12px, 375px→15px, 400px+→16px */
+  font-size: clamp(12px, 4vw, 16px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: linear-gradient(145deg, #d6e8f8 0%, #e2eef8 25%, #eae8f6 55%, #f0ebf8 80%, #f4eaf6 100%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+  font-family: 'Outfit', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 400;
+  color: #1A2535;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* ── Glass System ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 4px 24px rgba(89, 154, 200, 0.09),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.glass-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 0 rgba(89, 154, 200, 0.06);
+}
+
+.glass-tab {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-top: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 -4px 20px rgba(89, 154, 200, 0.06);
+}
+
+.glass-modal {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 40px rgba(58, 122, 174, 0.14);
+}
+
+/* ── 버튼 ── */
+.btn-primary {
+  width: 100%;
+  height: 52px;
+  background: rgba(90, 154, 200, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #FFFFFF;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-radius: 14px;
+  border: 1px solid rgba(137, 188, 226, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 20px rgba(90, 154, 200, 0.32), 0 1px 0 rgba(255,255,255,0.2) inset;
+}
+.btn-primary:hover {
+  background: rgba(58, 122, 174, 0.92);
+  box-shadow: 0 6px 24px rgba(58, 122, 174, 0.4), 0 1px 0 rgba(255,255,255,0.2) inset;
+}
+.btn-primary:active { transform: scale(0.99); }
+.btn-primary:disabled {
+  background: rgba(181, 213, 238, 0.55);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  width: 100%;
+  height: 52px;
+  background: rgba(234, 243, 250, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #5A9AC8;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  box-shadow: 0 2px 12px rgba(89, 154, 200, 0.06);
+}
+.btn-secondary:hover { background: rgba(211, 232, 245, 0.7); }
+
+/* ── 입력창 ── */
+.input-field {
+  width: 100%;
+  height: 52px;
+  background: rgba(234, 243, 250, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  padding: 0 16px;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-size: 0.875rem;
+  color: #1A2535;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.input-field::placeholder { color: #8BADC8; }
+.input-field:focus {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(137, 188, 226, 0.7);
+  box-shadow: 0 0 0 3px rgba(137, 188, 226, 0.12);
+}
+
+/* ── 진행 바 ── */
+.progress-bar {
+  height: 4px;
+  background: rgba(211, 232, 245, 0.5);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #89BCE2, #5A9AC8);
+  border-radius: 99px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 8px rgba(89, 188, 226, 0.4);
+}
+
+/* ── 선택 버튼 ── */
+.select-btn {
+  width: 100%;
+  height: 52px;
+  background: rgba(245, 248, 251, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-size: 0.875rem;
+  color: #3A6280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.select-btn:hover { background: rgba(234, 243, 250, 0.7); border-color: rgba(181, 213, 238, 0.7); }
+.select-btn.selected {
+  background: rgba(234, 243, 250, 0.8);
+  border-color: rgba(90, 154, 200, 0.6);
+  color: #3A7AAE;
+  font-weight: 500;
+  box-shadow: 0 2px 12px rgba(90, 154, 200, 0.12);
+}
+
+/* ── 페이드인 애니메이션 ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in              { animation: fadeInUp 0.35s ease forwards; }
+.fade-in-delay-1      { animation: fadeInUp 0.35s ease 0.05s forwards; opacity: 0; }
+.fade-in-delay-2      { animation: fadeInUp 0.35s ease 0.10s forwards; opacity: 0; }
+.fade-in-delay-3      { animation: fadeInUp 0.35s ease 0.15s forwards; opacity: 0; }
+.fade-in-delay-4      { animation: fadeInUp 0.35s ease 0.20s forwards; opacity: 0; }
+
+/* ── shimmer (스켈레톤) ── */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
