@@ -36,7 +36,8 @@ export interface AISkinResult {
   characteristics: string[]
   recommendedIngredients: RecommendedIngredient[]
   warnings: string[]
-  routine: RoutineStep[]
+  morningRoutine: RoutineStep[]
+  nightRoutine: RoutineStep[]
   lifestyle: string[]
   clinicTreatments?: ClinicTreatment[]  // 피부과 시술 추천 (반복 진단 시)
   clinicMessage?: string                 // 피부과 추천 메시지
@@ -52,11 +53,16 @@ export interface SkinDiagnosis {
   created_at: string
 }
 
+export interface RoutineSteps {
+  morning: RoutineStep[]
+  night: RoutineStep[]
+}
+
 export interface Routine {
   id: string
   user_id: string
   diagnosis_id: string
-  steps: RoutineStep[]
+  steps: RoutineSteps | RoutineStep[]   // RoutineStep[] is legacy format
   created_at: string
 }
 

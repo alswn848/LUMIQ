@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import LumiqLogo from '../components/LumiqLogo'
 import { HomePageSkeleton } from '../components/Skeleton'
-import type { RoutineCheck, SkinDiagnosis, Routine } from '../types'
+import type { RoutineCheck, SkinDiagnosis, Routine, RoutineStep, RoutineSteps } from '../types'
 
 export default function HomePage() {
   const navigate = useNavigate()
@@ -91,8 +91,12 @@ export default function HomePage() {
         const checkMap: Record<number, boolean> = {}
         checkData?.forEach((c: RoutineCheck) => { checkMap[c.step_index] = c.is_done })
         setChecks(checkMap)
-        await calcStreak(routines[0].id, routines[0].steps?.length || 4)
-        await calcWeeklyRate(routines[0].id, routines[0].steps?.length || 4)
+        const rawSteps = routines[0].steps
+        const totalSteps = Array.isArray(rawSteps)
+          ? (rawSteps as RoutineStep[]).length
+          : ((rawSteps as RoutineSteps).morning?.length || 0) + ((rawSteps as RoutineSteps).night?.length || 0) || 4
+        await calcStreak(routines[0].id, totalSteps)
+        await calcWeeklyRate(routines[0].id, totalSteps)
       }
     } catch {
       // 홈 데이터 로드 실패 시 빈 상태로 표시
@@ -110,7 +114,23 @@ export default function HomePage() {
   }
 
   const checkedCount = Object.values(checks).filter(Boolean).length
-  const totalCount = todayRoutine?.steps?.length || 0
+  const homeSteps: RoutineStep[] = todayRoutine
+    ? Array.isArray(todayRoutine.steps)
+      ? (todayRoutine.steps as RoutineStep[])
+      : [
+          ...((todayRoutine.steps as RoutineSteps).morning || []),
+          ...((todayRoutine.steps as RoutineSteps).night || []),
+        ]
+    : []
+  const homeStepIndices: number[] = todayRoutine
+    ? Array.isArray(todayRoutine.steps)
+      ? homeSteps.map((_, i) => i)
+      : [
+          ...(((todayRoutine.steps as RoutineSteps).morning || []).map((_, i) => i)),
+          ...(((todayRoutine.steps as RoutineSteps).night || []).map((_, i) => 100 + i)),
+        ]
+    : []
+  const totalCount = homeSteps.length
   const progress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
 
   if (loading) return (
@@ -214,8 +234,9 @@ export default function HomePage() {
             {todayRoutine ? (
               <>
                 <div className="flex flex-col gap-2.5">
-                  {todayRoutine.steps.map((step, idx) => {
-                    const isDone = checks[idx] || false
+                  {homeSteps.map((step, idx) => {
+                    const stepIndex = homeStepIndices[idx]
+                    const isDone = checks[stepIndex] || false
                     return (
                       <div key={idx} className="flex items-center gap-3">
                         <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${isDone ? '' : 'border border-gray-200'}`}

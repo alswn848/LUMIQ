@@ -4,18 +4,30 @@ import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
 import { RoutinePageSkeleton } from '../components/Skeleton'
-import type { Routine, RoutineCheck, RoutineStep } from '../types'
+import type { Routine, RoutineCheck, RoutineStep, RoutineSteps } from '../types'
+
+const NIGHT_OFFSET = 100
+
+function getSteps(routine: Routine): { morning: RoutineStep[]; night: RoutineStep[] } {
+  if (Array.isArray(routine.steps)) {
+    return { morning: routine.steps as RoutineStep[], night: [] }
+  }
+  const s = routine.steps as RoutineSteps
+  return { morning: s.morning || [], night: s.night || [] }
+}
 
 export default function RoutinePage() {
   const navigate = useNavigate()
   const [routine, setRoutine] = useState<Routine | null>(null)
   const [checks, setChecks] = useState<Record<number, boolean>>({})
-  const [expanded, setExpanded] = useState<number | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [editMode, setEditMode] = useState(false)
-  const [editSteps, setEditSteps] = useState<RoutineStep[]>([])
+  const [editMorning, setEditMorning] = useState<RoutineStep[]>([])
+  const [editNight, setEditNight] = useState<RoutineStep[]>([])
   const [savingEdit, setSavingEdit] = useState(false)
-  const [newStepName, setNewStepName] = useState('')
+  const [newMorningName, setNewMorningName] = useState('')
+  const [newNightName, setNewNightName] = useState('')
   const today = new Date().toISOString().split('T')[0]
   const todayLabel = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
 
@@ -48,18 +60,19 @@ export default function RoutinePage() {
     }
   }, [today])
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchRoutine() }, [fetchRoutine])
 
-  const handleCheck = async (stepIdx: number) => {
+  const handleCheck = async (stepIndex: number, stepName: string) => {
     if (!routine) return
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const newValue = !checks[stepIdx]
+    const { morning, night } = getSteps(routine)
+    const totalCount = morning.length + night.length
+    const newValue = !checks[stepIndex]
+
     setChecks(prev => {
-      const updated = { ...prev, [stepIdx]: newValue }
-      const totalCount = routine.steps?.length || 0
+      const updated = { ...prev, [stepIndex]: newValue }
       const doneCount = Object.values(updated).filter(Boolean).length
       if (doneCount === totalCount) {
         setTimeout(() => toast('🎉 오늘 루틴 완료! 훌륭해요', 'success'), 300)
@@ -67,32 +80,28 @@ export default function RoutinePage() {
       return updated
     })
 
-    if (newValue) toast(`${routine.steps[stepIdx]?.name} 완료!`, 'success')
+    if (newValue) toast(`${stepName} 완료!`, 'success')
 
     const { error } = await supabase.from('routine_checks').upsert({
       user_id: user.id, routine_id: routine.id,
-      checked_at: today, step_index: stepIdx, is_done: newValue,
+      checked_at: today, step_index: stepIndex, is_done: newValue,
     }, { onConflict: 'routine_id,checked_at,step_index' })
 
     if (error) {
-      setChecks(prev => ({ ...prev, [stepIdx]: !newValue }))
+      setChecks(prev => ({ ...prev, [stepIndex]: !newValue }))
       toast('저장에 실패했어요', 'error')
     }
   }
-
-  const checkedCount = Object.values(checks).filter(Boolean).length
-  const totalCount = routine?.steps?.length || 0
-  const progress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
-  const isAllDone = totalCount > 0 && checkedCount === totalCount
 
   const handleEditSave = async () => {
     if (!routine) return
     setSavingEdit(true)
     try {
-      const renumbered = editSteps.map((s, i) => ({ ...s, step: i + 1 }))
-      const { error } = await supabase.from('routines').update({ steps: renumbered }).eq('id', routine.id)
+      const morning = editMorning.map((s, i) => ({ ...s, step: i + 1 }))
+      const night = editNight.map((s, i) => ({ ...s, step: i + 1 }))
+      const { error } = await supabase.from('routines').update({ steps: { morning, night } }).eq('id', routine.id)
       if (error) throw error
-      setRoutine({ ...routine, steps: renumbered })
+      setRoutine({ ...routine, steps: { morning, night } })
       setEditMode(false)
       toast('루틴이 수정됐어요!', 'success')
     } catch {
@@ -100,25 +109,22 @@ export default function RoutinePage() {
     } finally { setSavingEdit(false) }
   }
 
-  const handleAddStep = () => {
-    if (!newStepName.trim()) return
-    const next: RoutineStep = {
-      step: editSteps.length + 1,
-      name: newStepName.trim(),
-      product: '',
-      description: '',
-      tip: '',
-    }
-    setEditSteps(prev => [...prev, next])
-    setNewStepName('')
+  const addStep = (type: 'morning' | 'night') => {
+    const name = type === 'morning' ? newMorningName.trim() : newNightName.trim()
+    if (!name) return
+    const next: RoutineStep = { step: 0, name, product: '', description: '', tip: '' }
+    if (type === 'morning') { setEditMorning(prev => [...prev, next]); setNewMorningName('') }
+    else { setEditNight(prev => [...prev, next]); setNewNightName('') }
   }
 
-  const handleDeleteStep = (idx: number) => {
-    setEditSteps(prev => prev.filter((_, i) => i !== idx))
+  const deleteStep = (type: 'morning' | 'night', idx: number) => {
+    if (type === 'morning') setEditMorning(prev => prev.filter((_, i) => i !== idx))
+    else setEditNight(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const handleMoveStep = (idx: number, dir: 'up' | 'down') => {
-    setEditSteps(prev => {
+  const moveStep = (type: 'morning' | 'night', idx: number, dir: 'up' | 'down') => {
+    const setter = type === 'morning' ? setEditMorning : setEditNight
+    setter(prev => {
       const arr = [...prev]
       const target = dir === 'up' ? idx - 1 : idx + 1
       if (target < 0 || target >= arr.length) return arr
@@ -126,6 +132,19 @@ export default function RoutinePage() {
       return arr
     })
   }
+
+  const renameStep = (type: 'morning' | 'night', idx: number, name: string) => {
+    const setter = type === 'morning' ? setEditMorning : setEditNight
+    setter(prev => prev.map((s, i) => i === idx ? { ...s, name } : s))
+  }
+
+  const steps = routine ? getSteps(routine) : null
+  const morningCount = steps?.morning.length || 0
+  const nightCount = steps?.night.length || 0
+  const totalCount = morningCount + nightCount
+  const checkedCount = Object.values(checks).filter(Boolean).length
+  const progress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
+  const isAllDone = totalCount > 0 && checkedCount === totalCount
 
   if (loading) return (
     <div className="flex flex-col min-h-dvh pb-20">
@@ -135,6 +154,124 @@ export default function RoutinePage() {
         </Layout>
       </header>
       <RoutinePageSkeleton />
+    </div>
+  )
+
+  const renderStepList = (
+    stepList: RoutineStep[],
+    type: 'morning' | 'night',
+    indexOffset: number
+  ) => stepList.map((step, idx) => {
+    const stepIndex = indexOffset + idx
+    const isDone = checks[stepIndex] || false
+    const key = `${type}_${idx}`
+    const isExpanded = expanded === key
+    const hasTip = !!step.tip
+    const hasDesc = !!step.description
+
+    return (
+      <div key={key} className="glass-card rounded-2xl overflow-hidden transition-all"
+        style={isDone ? { background: 'rgba(211,232,245,0.35)', border: '1px solid rgba(137,188,226,0.3)' } : {}}>
+        <div className="flex items-center gap-4 p-4">
+          <button
+            onClick={() => handleCheck(stepIndex, step.name)}
+            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
+            style={{
+              background: isDone ? 'rgba(137,188,226,0.85)' : 'rgba(255,255,255,0.4)',
+              border: isDone ? 'none' : '1.5px solid rgba(181,213,238,0.6)',
+              backdropFilter: 'blur(8px)',
+            }}
+            aria-label={`${step.name} 체크`}>
+            {isDone && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
+                <path d="M20 6L9 17L4 12"/>
+              </svg>
+            )}
+          </button>
+
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{step.step}단계</span>
+              <span className={`text-sm font-medium ${isDone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                {step.name}
+              </span>
+            </div>
+            {step.product && <p className="text-xs text-gray-400 mt-0.5">{step.product}</p>}
+            {step.product_memo && (
+              <p className="text-xs mt-0.5" style={{ color: '#89BCE2' }}>📌 {step.product_memo}</p>
+            )}
+          </div>
+
+          {(hasTip || hasDesc) && (
+            <button
+              onClick={() => setExpanded(isExpanded ? null : key)}
+              className="w-6 h-6 flex items-center justify-center flex-shrink-0 rounded-full transition-all"
+              style={{ background: 'rgba(234,243,250,0.5)', backdropFilter: 'blur(8px)' }}
+              aria-label="상세 보기">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8BADC8" strokeWidth="2.5" strokeLinecap="round"
+                style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {isExpanded && (hasTip || hasDesc) && (
+          <div className="px-4 pb-4 flex flex-col gap-2 border-t border-white/20">
+            {hasDesc && <p className="text-xs text-gray-500 leading-relaxed pt-3">{step.description}</p>}
+            {hasTip && (
+              <div className="rounded-xl px-3 py-2" style={{ background: 'rgba(234,243,250,0.5)', backdropFilter: 'blur(10px)' }}>
+                <p className="text-xs leading-relaxed" style={{ color: '#5A9AC8' }}>
+                  <span className="font-semibold">Tip. </span>{step.tip}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  })
+
+  const renderEditList = (
+    editList: RoutineStep[],
+    type: 'morning' | 'night',
+    newName: string,
+    setNewName: (v: string) => void
+  ) => (
+    <div className="flex flex-col gap-2">
+      {editList.map((step, idx) => (
+        <div key={idx} className="glass-card rounded-2xl p-4 flex items-center gap-3">
+          <div className="flex flex-col gap-1">
+            <button onClick={() => moveStep(type, idx, 'up')} disabled={idx === 0} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="위로">▲</button>
+            <button onClick={() => moveStep(type, idx, 'down')} disabled={idx === editList.length - 1} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="아래로">▼</button>
+          </div>
+          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+            style={{ background: 'rgba(137,188,226,0.2)', color: '#5A9AC8' }}>{idx + 1}</div>
+          <div className="flex-1">
+            <input
+              value={step.name}
+              onChange={e => renameStep(type, idx, e.target.value)}
+              className="input-field w-full"
+              style={{ height: 36, fontSize: 13 }}
+              aria-label={`${idx + 1}번 단계 이름`}
+            />
+          </div>
+          <button onClick={() => deleteStep(type, idx)} className="text-red-300 hover:text-red-400 transition-colors flex-shrink-0" aria-label="단계 삭제">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      ))}
+      <div className="flex gap-2">
+        <input
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && addStep(type)}
+          placeholder="새 단계 이름 입력"
+          className="input-field flex-1"
+          style={{ height: 44, fontSize: 13 }}
+        />
+        <button onClick={() => addStep(type)} disabled={!newName.trim()} className="px-4 h-11 rounded-2xl text-sm font-medium text-white disabled:opacity-40" style={{ background: 'rgba(137,188,226,0.85)' }}>추가</button>
+      </div>
     </div>
   )
 
@@ -149,7 +286,13 @@ export default function RoutinePage() {
             </div>
             {routine && (
               <button
-                onClick={() => { if (!editMode) setEditSteps([...routine.steps]); setEditMode(e => !e) }}
+                onClick={() => {
+                  if (!editMode && steps) {
+                    setEditMorning([...steps.morning])
+                    setEditNight([...steps.night])
+                  }
+                  setEditMode(e => !e)
+                }}
                 className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
                 style={{ background: editMode ? 'rgba(239,68,68,0.1)' : 'rgba(137,188,226,0.15)', color: editMode ? '#EF4444' : '#5A9AC8' }}
                 aria-label={editMode ? '편집 취소' : '루틴 편집'}
@@ -164,154 +307,93 @@ export default function RoutinePage() {
       <Layout className="pt-6">
         {/* 편집 모드 */}
         {editMode && routine && (
-          <div className="flex flex-col gap-3 mb-6">
-            <p className="text-sm font-semibold text-gray-700">루틴 편집</p>
-            {editSteps.map((step, idx) => (
-              <div key={idx} className="glass-card rounded-2xl p-4 flex items-center gap-3">
-                <div className="flex flex-col gap-1">
-                  <button onClick={() => handleMoveStep(idx, 'up')} disabled={idx === 0} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="위로">▲</button>
-                  <button onClick={() => handleMoveStep(idx, 'down')} disabled={idx === editSteps.length - 1} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="아래로">▼</button>
-                </div>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0" style={{ background: 'rgba(137,188,226,0.2)', color: '#5A9AC8' }}>{idx + 1}</div>
-                <div className="flex-1">
-                  <input
-                    value={step.name}
-                    onChange={e => setEditSteps(prev => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))}
-                    className="input-field w-full"
-                    style={{ height: 36, fontSize: 13 }}
-                    aria-label={`${idx + 1}번 단계 이름`}
-                  />
-                </div>
-                <button onClick={() => handleDeleteStep(idx)} className="text-red-300 hover:text-red-400 transition-colors flex-shrink-0" aria-label="단계 삭제">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
+          <div className="flex flex-col gap-5 mb-6">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F0B860" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                </svg>
+                <p className="text-sm font-semibold text-gray-700">모닝케어 편집</p>
               </div>
-            ))}
-            <div className="flex gap-2">
-              <input
-                value={newStepName}
-                onChange={e => setNewStepName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddStep()}
-                placeholder="새 단계 이름 입력"
-                className="input-field flex-1"
-                style={{ height: 44, fontSize: 13 }}
-                aria-label="새 단계 이름"
-              />
-              <button onClick={handleAddStep} disabled={!newStepName.trim()} className="px-4 h-11 rounded-2xl text-sm font-medium text-white disabled:opacity-40" style={{ background: 'rgba(137,188,226,0.85)' }} aria-label="단계 추가">추가</button>
+              {renderEditList(editMorning, 'morning', newMorningName, setNewMorningName)}
             </div>
-            <button onClick={handleEditSave} disabled={savingEdit || editSteps.length === 0} className="btn-primary">
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#89BCE2" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <p className="text-sm font-semibold text-gray-700">나이트케어 편집</p>
+              </div>
+              {renderEditList(editNight, 'night', newNightName, setNewNightName)}
+            </div>
+
+            <button onClick={handleEditSave} disabled={savingEdit || (editMorning.length === 0 && editNight.length === 0)} className="btn-primary">
               {savingEdit ? '저장 중...' : '루틴 저장하기'}
             </button>
           </div>
         )}
 
-        {routine ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            {/* 왼쪽: 진행률 */}
-            <div className="flex flex-col gap-4">
-              <div className="glass-card rounded-2xl p-5">
-                <div className="flex justify-between items-center mb-3">
-                  <p className="text-sm font-semibold text-gray-700">오늘의 진행률</p>
-                  <p className="text-sm font-semibold" style={{ color: '#89BCE2' }}>{checkedCount} / {totalCount}</p>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="text-xs text-gray-400 mt-2 text-right">{progress}%</p>
+        {routine && steps ? (
+          <div className="flex flex-col gap-6">
+            {/* 진행률 */}
+            <div className="glass-card rounded-2xl p-5">
+              <div className="flex justify-between items-center mb-3">
+                <p className="text-sm font-semibold text-gray-700">오늘의 진행률</p>
+                <p className="text-sm font-semibold" style={{ color: '#89BCE2' }}>{checkedCount} / {totalCount}</p>
               </div>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+              <p className="text-xs text-gray-400 mt-2 text-right">{progress}%</p>
+            </div>
 
-              {isAllDone && (
-                <div className="glass-card rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'rgba(137,188,226,0.2)', backdropFilter: 'blur(10px)' }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A9AC8" strokeWidth="2.5" strokeLinecap="round">
-                      <path d="M20 6L9 17L4 12"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: '#3A7AAE' }}>오늘 루틴 완료!</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#89BCE2' }}>훌륭해요. 내일도 함께해요 🌿</p>
-                  </div>
+            {isAllDone && (
+              <div className="glass-card rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(137,188,226,0.2)', backdropFilter: 'blur(10px)' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A9AC8" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M20 6L9 17L4 12"/>
+                  </svg>
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#3A7AAE' }}>오늘 루틴 완료!</p>
+                  <p className="text-xs mt-0.5" style={{ color: '#89BCE2' }}>훌륭해요. 내일도 함께해요 🌿</p>
+                </div>
+              </div>
+            )}
 
-            {/* 오른쪽: 체크리스트 */}
-            <div className="flex flex-col gap-3">
-              {routine.steps.map((step, idx) => {
-                const isDone = checks[idx] || false
-                const isExpanded = expanded === idx
-                const hasTip = !!step.tip
-                const hasDesc = !!step.description
+            {/* 모닝케어 */}
+            {steps.morning.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F0B860" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                  </svg>
+                  <p className="text-sm font-semibold text-gray-700">모닝케어</p>
+                  <span className="text-xs text-gray-400">
+                    {steps.morning.filter((_, i) => checks[i]).length}/{steps.morning.length}
+                  </span>
+                </div>
+                {renderStepList(steps.morning, 'morning', 0)}
+              </div>
+            )}
 
-                return (
-                  <div key={idx} className="glass-card rounded-2xl overflow-hidden transition-all"
-                    style={isDone ? { background: 'rgba(211,232,245,0.35)', border: '1px solid rgba(137,188,226,0.3)' } : {}}>
-                    <div className="flex items-center gap-4 p-4">
-                      <button
-                        onClick={() => handleCheck(idx)}
-                        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
-                        style={{
-                          background: isDone ? 'rgba(137,188,226,0.85)' : 'rgba(255,255,255,0.4)',
-                          border: isDone ? 'none' : '1.5px solid rgba(181,213,238,0.6)',
-                          backdropFilter: 'blur(8px)',
-                        }}>
-                        {isDone && (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-                            <path d="M20 6L9 17L4 12"/>
-                          </svg>
-                        )}
-                      </button>
-
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">{step.step}단계</span>
-                          <span className={`text-sm font-medium ${isDone ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                            {step.name}
-                          </span>
-                        </div>
-                        {step.product && (
-                          <p className="text-xs text-gray-400 mt-0.5">{step.product}</p>
-                        )}
-                        {step.product_memo && (
-                          <p className="text-xs mt-0.5" style={{ color: '#89BCE2' }}>📌 {step.product_memo}</p>
-                        )}
-                      </div>
-
-                      {(hasTip || hasDesc) && (
-                        <button
-                          onClick={() => setExpanded(isExpanded ? null : idx)}
-                          className="w-6 h-6 flex items-center justify-center flex-shrink-0 rounded-full transition-all"
-                          style={{ background: 'rgba(234,243,250,0.5)', backdropFilter: 'blur(8px)' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8BADC8" strokeWidth="2.5" strokeLinecap="round"
-                            style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-                            <path d="M6 9l6 6 6-6"/>
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-
-                    {isExpanded && (hasTip || hasDesc) && (
-                      <div className="px-4 pb-4 flex flex-col gap-2 border-t border-white/20">
-                        {hasDesc && (
-                          <p className="text-xs text-gray-500 leading-relaxed pt-3">
-                            {step.description}
-                          </p>
-                        )}
-                        {hasTip && (
-                          <div className="rounded-xl px-3 py-2" style={{ background: 'rgba(234,243,250,0.5)', backdropFilter: 'blur(10px)' }}>
-                            <p className="text-xs leading-relaxed" style={{ color: '#5A9AC8' }}>
-                              <span className="font-semibold">Tip. </span>
-                              {step.tip}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            {/* 나이트케어 */}
+            {steps.night.length > 0 && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#89BCE2" strokeWidth="2" strokeLinecap="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                  <p className="text-sm font-semibold text-gray-700">나이트케어</p>
+                  <span className="text-xs text-gray-400">
+                    {steps.night.filter((_, i) => checks[NIGHT_OFFSET + i]).length}/{steps.night.length}
+                  </span>
+                </div>
+                {renderStepList(steps.night, 'night', NIGHT_OFFSET)}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 gap-4">

@@ -77,7 +77,7 @@ export default function DiagnosisPage() {
       const { error: routineError } = await supabase.from('routines').insert({
         user_id: user.id,
         diagnosis_id: diagnosis.id,
-        steps: result.routine,
+        steps: { morning: result.morningRoutine, night: result.nightRoutine },
       })
       if (routineError) throw routineError
 

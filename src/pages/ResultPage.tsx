@@ -13,7 +13,7 @@ export default function ResultPage() {
   const location = useLocation()
   const state = location.state as { result: AISkinResult; diagnosisId: string } | null
   const [activeTab, setActiveTab] = useState<TabType>('result')
-  const [memos, setMemos] = useState<Record<number, string>>({})
+  const [memos, setMemos] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -45,10 +45,13 @@ export default function ResultPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const updatedSteps = result.routine.map(step => ({
-        ...step, product_memo: memos[step.step] || '',
+      const morning = result.morningRoutine.map(step => ({
+        ...step, product_memo: memos[`m_${step.step}`] || '',
       }))
-      const { error } = await supabase.from('routines').update({ steps: updatedSteps }).eq('diagnosis_id', diagnosisId)
+      const night = result.nightRoutine.map(step => ({
+        ...step, product_memo: memos[`n_${step.step}`] || '',
+      }))
+      const { error } = await supabase.from('routines').update({ steps: { morning, night } }).eq('diagnosis_id', diagnosisId)
       if (error) throw error
       toast('루틴이 저장됐어요!', 'success')
       setTimeout(() => navigate('/routine'), 500)
@@ -195,38 +198,88 @@ export default function ResultPage() {
 
         {/* 탭 2: 루틴 */}
         {activeTab === 'routine' && (
-          <div className="flex flex-col gap-3 fade-in">
+          <div className="flex flex-col gap-4 fade-in">
             <p className="text-sm text-gray-400">각 단계에 사용 중인 제품을 메모해보세요</p>
-            {result.routine.map(step => (
-              <div key={step.step} className="glass-card rounded-2xl p-4">
-                <div className="flex items-start gap-2.5 mb-2">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5"
-                    style={{ background: 'rgba(255,255,255,0.5)', backdropFilter: 'blur(8px)', color: color.text }}>
-                    {step.step}
+
+            {/* 모닝케어 */}
+            <div className="flex items-center gap-2 mt-1">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F0B860" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+              <p className="text-sm font-semibold text-gray-700">모닝케어</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              {result.morningRoutine.map(step => (
+                <div key={step.step} className="glass-card rounded-2xl p-4">
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5"
+                      style={{ background: 'rgba(255,235,180,0.5)', color: '#C08020' }}>
+                      {step.step}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">{step.name}</p>
+                      <p className="text-xs mt-0.5" style={{ color: '#C08020', opacity: 0.85 }}>{step.product}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700">{step.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: color.text, opacity: 0.8 }}>{step.product}</p>
-                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed mb-2">{step.description}</p>
+                  {step.tip && (
+                    <div className="rounded-xl px-3 py-2 mb-3" style={{ background: 'rgba(255,248,220,0.5)', backdropFilter: 'blur(8px)' }}>
+                      <p className="text-xs leading-relaxed" style={{ color: '#C08020' }}>
+                        <span className="font-semibold">Tip. </span>{step.tip}
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={memos[`m_${step.step}`] || ''}
+                    onChange={e => setMemos(prev => ({ ...prev, [`m_${step.step}`]: e.target.value }))}
+                    placeholder="사용 중인 제품명을 메모해요 (선택)"
+                    className="input-field"
+                    style={{ height: '40px', fontSize: '12px' }}
+                  />
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed mb-2">{step.description}</p>
-                {step.tip && (
-                  <div className="rounded-xl px-3 py-2 mb-3" style={{ background: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)' }}>
-                    <p className="text-xs leading-relaxed" style={{ color: color.text }}>
-                      <span className="font-semibold">Tip. </span>{step.tip}
-                    </p>
+              ))}
+            </div>
+
+            {/* 나이트케어 */}
+            <div className="flex items-center gap-2 mt-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#89BCE2" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+              <p className="text-sm font-semibold text-gray-700">나이트케어</p>
+            </div>
+            <div className="flex flex-col gap-3">
+              {result.nightRoutine.map(step => (
+                <div key={step.step} className="glass-card rounded-2xl p-4">
+                  <div className="flex items-start gap-2.5 mb-2">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold mt-0.5"
+                      style={{ background: 'rgba(137,188,226,0.2)', color: color.text }}>
+                      {step.step}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">{step.name}</p>
+                      <p className="text-xs mt-0.5" style={{ color: color.text, opacity: 0.8 }}>{step.product}</p>
+                    </div>
                   </div>
-                )}
-                <input
-                  type="text"
-                  value={memos[step.step] || ''}
-                  onChange={e => setMemos(prev => ({ ...prev, [step.step]: e.target.value }))}
-                  placeholder="사용 중인 제품명을 메모해요 (선택)"
-                  className="input-field"
-                  style={{ height: '40px', fontSize: '12px' }}
-                />
-              </div>
-            ))}
+                  <p className="text-xs text-gray-500 leading-relaxed mb-2">{step.description}</p>
+                  {step.tip && (
+                    <div className="rounded-xl px-3 py-2 mb-3" style={{ background: 'rgba(255,255,255,0.4)', backdropFilter: 'blur(8px)' }}>
+                      <p className="text-xs leading-relaxed" style={{ color: color.text }}>
+                        <span className="font-semibold">Tip. </span>{step.tip}
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={memos[`n_${step.step}`] || ''}
+                    onChange={e => setMemos(prev => ({ ...prev, [`n_${step.step}`]: e.target.value }))}
+                    placeholder="사용 중인 제품명을 메모해요 (선택)"
+                    className="input-field"
+                    style={{ height: '40px', fontSize: '12px' }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
