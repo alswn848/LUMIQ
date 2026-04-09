@@ -63,9 +63,9 @@ export default function OnboardingPage() {
               </div>
               <div className="relative">
                 <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value.slice(0, 12))}
-                  placeholder="닉네임을 입력해주세요" maxLength={12} className="input-field pr-16" />
+                  placeholder="닉네임을 입력해주세요" maxLength={12} className={`input-field ${nickname ? 'pr-10' : ''}`} />
                 {nickname && (
-                  <button onClick={() => setNickname('')} className="absolute right-10 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 text-white">
+                  <button onClick={() => setNickname('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full bg-gray-300 text-white">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                   </button>
                 )}
