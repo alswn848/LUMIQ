@@ -5,12 +5,50 @@ import { toast } from '../components/Toast'
 import { DiaryPageSkeleton } from '../components/Skeleton'
 import type { DiaryEntry } from '../types'
 
+const CONDITION_COLORS = ['', '#F09090', '#F0B880', '#F0D870', '#7ECBA0', '#89BCE2']
+
+function ConditionIcon({ value, active }: { value: number; active: boolean }) {
+  const color = active ? CONDITION_COLORS[value] : '#C8D8E8'
+  const size = 28
+
+  const icons = [
+    null,
+    // 1 — 물방울 비어있음 (윤곽선만)
+    <svg key={1} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0C19 10 12 2 12 2z"/>
+    </svg>,
+    // 2 — 물방울 25% 채움
+    <svg key={2} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0C19 10 12 2 12 2z"/>
+      <path d="M7.5 18.5 Q12 20 16.5 18.5" strokeWidth="1.4"/>
+    </svg>,
+    // 3 — 물방울 50% 채움
+    <svg key={3} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0C19 10 12 2 12 2z"/>
+      <path d="M6.5 16 Q12 18.5 17.5 16" strokeWidth="1.4"/>
+    </svg>,
+    // 4 — 물방울 75% 채움
+    <svg key={4} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0C19 10 12 2 12 2z"/>
+      <path d="M6 13.5 Q12 16.5 18 13.5" strokeWidth="1.4"/>
+    </svg>,
+    // 5 — 물방울 꽉 참 + 반짝이
+    <svg key={5} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2C12 2 5 10 5 15a7 7 0 0014 0C19 10 12 2 12 2z" fill={`${color}30`}/>
+      <path d="M9 14.5 Q12 13 15 14.5" strokeWidth="1.4"/>
+      <path d="M19 5l.5-1.5.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5z" strokeWidth="1.2"/>
+    </svg>,
+  ]
+
+  return <>{icons[value]}</>
+}
+
 const CONDITIONS = [
-  { value: 1, emoji: '😞', label: '최악' },
-  { value: 2, emoji: '😕', label: '나쁨' },
-  { value: 3, emoji: '😐', label: '보통' },
-  { value: 4, emoji: '🙂', label: '좋음' },
-  { value: 5, emoji: '😄', label: '최고' },
+  { value: 1, label: '매우 나쁨' },
+  { value: 2, label: '나쁨' },
+  { value: 3, label: '보통' },
+  { value: 4, label: '좋음' },
+  { value: 5, label: '매우 좋음' },
 ]
 
 export default function DiaryPage() {
@@ -122,7 +160,7 @@ export default function DiaryPage() {
                     transform: condition === c.value ? 'scale(1.15)' : 'scale(1)',
                   }}
                 >
-                  {c.emoji}
+                  <ConditionIcon value={c.value} active={condition === c.value} />
                 </div>
                 <span className="text-xs text-gray-400">{c.label}</span>
               </button>
@@ -157,10 +195,10 @@ export default function DiaryPage() {
               return (
                 <div key={entry.id} className="glass-card rounded-2xl p-4 flex items-center gap-4">
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ background: `${getConditionColor(entry.condition)}20` }}
                   >
-                    {c?.emoji}
+                    <ConditionIcon value={entry.condition} active={true} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
