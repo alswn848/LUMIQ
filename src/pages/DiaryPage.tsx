@@ -228,7 +228,12 @@ export default function DiaryPage() {
 
         {entries.length === 0 && (
           <div className="flex flex-col items-center py-12 gap-3">
-            <span className="text-4xl">📔</span>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#B5D5EE" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              <line x1="9" y1="7" x2="15" y2="7"/>
+              <line x1="9" y1="11" x2="15" y2="11"/>
+            </svg>
             <p className="text-sm text-gray-400">첫 번째 피부 일기를 작성해보세요</p>
           </div>
         )}
