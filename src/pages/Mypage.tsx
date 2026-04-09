@@ -84,6 +84,7 @@ export default function MyPage() {
       await supabase.from('routine_checks').delete().eq('user_id', user.id)
       await supabase.from('routines').delete().eq('user_id', user.id)
       await supabase.from('skin_diagnoses').delete().eq('user_id', user.id)
+      await supabase.from('skin_diary').delete().eq('user_id', user.id)
       await supabase.from('user_profiles').delete().eq('user_id', user.id)
 
       await supabase.rpc('delete_user')
