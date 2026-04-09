@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
-import type { Routine, RoutineCheck } from '../types'
+import { RoutinePageSkeleton } from '../components/Skeleton'
+import type { Routine, RoutineCheck, RoutineStep } from '../types'
 
 export default function RoutinePage() {
   const navigate = useNavigate()
@@ -11,6 +12,10 @@ export default function RoutinePage() {
   const [checks, setChecks] = useState<Record<number, boolean>>({})
   const [expanded, setExpanded] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [editMode, setEditMode] = useState(false)
+  const [editSteps, setEditSteps] = useState<RoutineStep[]>([])
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [newStepName, setNewStepName] = useState('')
   const today = new Date().toISOString().split('T')[0]
   const todayLabel = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
 
@@ -80,9 +85,56 @@ export default function RoutinePage() {
   const progress = totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0
   const isAllDone = totalCount > 0 && checkedCount === totalCount
 
+  const handleEditSave = async () => {
+    if (!routine) return
+    setSavingEdit(true)
+    try {
+      const renumbered = editSteps.map((s, i) => ({ ...s, step: i + 1 }))
+      const { error } = await supabase.from('routines').update({ steps: renumbered }).eq('id', routine.id)
+      if (error) throw error
+      setRoutine({ ...routine, steps: renumbered })
+      setEditMode(false)
+      toast('루틴이 수정됐어요!', 'success')
+    } catch {
+      toast('저장에 실패했어요', 'error')
+    } finally { setSavingEdit(false) }
+  }
+
+  const handleAddStep = () => {
+    if (!newStepName.trim()) return
+    const next: RoutineStep = {
+      step: editSteps.length + 1,
+      name: newStepName.trim(),
+      product: '',
+      description: '',
+      tip: '',
+    }
+    setEditSteps(prev => [...prev, next])
+    setNewStepName('')
+  }
+
+  const handleDeleteStep = (idx: number) => {
+    setEditSteps(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleMoveStep = (idx: number, dir: 'up' | 'down') => {
+    setEditSteps(prev => {
+      const arr = [...prev]
+      const target = dir === 'up' ? idx - 1 : idx + 1
+      if (target < 0 || target >= arr.length) return arr
+      ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
+      return arr
+    })
+  }
+
   if (loading) return (
-    <div className="flex items-center justify-center min-h-dvh">
-      <p className="text-sm text-gray-400">불러오는 중...</p>
+    <div className="flex flex-col min-h-dvh pb-20">
+      <header className="glass-nav w-full h-16">
+        <Layout className="flex flex-col justify-center h-full">
+          <h2 className="text-lg font-semibold text-gray-800">오늘의 루틴</h2>
+        </Layout>
+      </header>
+      <RoutinePageSkeleton />
     </div>
   )
 
@@ -90,12 +142,69 @@ export default function RoutinePage() {
     <div className="flex flex-col min-h-dvh pb-20">
       <header className="glass-nav w-full h-16">
         <Layout className="flex flex-col justify-center h-full">
-          <h2 className="text-lg font-semibold text-gray-800">오늘의 루틴</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{todayLabel}</p>
+          <div className="flex items-center justify-between w-full">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">오늘의 루틴</h2>
+              <p className="text-sm text-gray-400 mt-0.5">{todayLabel}</p>
+            </div>
+            {routine && (
+              <button
+                onClick={() => { if (!editMode) setEditSteps([...routine.steps]); setEditMode(e => !e) }}
+                className="text-xs px-3 py-1.5 rounded-full font-medium transition-all"
+                style={{ background: editMode ? 'rgba(239,68,68,0.1)' : 'rgba(137,188,226,0.15)', color: editMode ? '#EF4444' : '#5A9AC8' }}
+                aria-label={editMode ? '편집 취소' : '루틴 편집'}
+              >
+                {editMode ? '취소' : '편집'}
+              </button>
+            )}
+          </div>
         </Layout>
       </header>
 
       <Layout className="pt-6">
+        {/* 편집 모드 */}
+        {editMode && routine && (
+          <div className="flex flex-col gap-3 mb-6">
+            <p className="text-sm font-semibold text-gray-700">루틴 편집</p>
+            {editSteps.map((step, idx) => (
+              <div key={idx} className="glass-card rounded-2xl p-4 flex items-center gap-3">
+                <div className="flex flex-col gap-1">
+                  <button onClick={() => handleMoveStep(idx, 'up')} disabled={idx === 0} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="위로">▲</button>
+                  <button onClick={() => handleMoveStep(idx, 'down')} disabled={idx === editSteps.length - 1} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="아래로">▼</button>
+                </div>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0" style={{ background: 'rgba(137,188,226,0.2)', color: '#5A9AC8' }}>{idx + 1}</div>
+                <div className="flex-1">
+                  <input
+                    value={step.name}
+                    onChange={e => setEditSteps(prev => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s))}
+                    className="input-field w-full"
+                    style={{ height: 36, fontSize: 13 }}
+                    aria-label={`${idx + 1}번 단계 이름`}
+                  />
+                </div>
+                <button onClick={() => handleDeleteStep(idx)} className="text-red-300 hover:text-red-400 transition-colors flex-shrink-0" aria-label="단계 삭제">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <input
+                value={newStepName}
+                onChange={e => setNewStepName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddStep()}
+                placeholder="새 단계 이름 입력"
+                className="input-field flex-1"
+                style={{ height: 44, fontSize: 13 }}
+                aria-label="새 단계 이름"
+              />
+              <button onClick={handleAddStep} disabled={!newStepName.trim()} className="px-4 h-11 rounded-2xl text-sm font-medium text-white disabled:opacity-40" style={{ background: 'rgba(137,188,226,0.85)' }} aria-label="단계 추가">추가</button>
+            </div>
+            <button onClick={handleEditSave} disabled={savingEdit || editSteps.length === 0} className="btn-primary">
+              {savingEdit ? '저장 중...' : '루틴 저장하기'}
+            </button>
+          </div>
+        )}
+
         {routine ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             {/* 왼쪽: 진행률 */}

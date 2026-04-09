@@ -32,6 +32,16 @@ export default function ResultPage() {
     ...(hasClinic ? [{ id: 'clinic' as TabType, label: '피부과 시술' }] : []),
   ]
 
+  const handleShare = async () => {
+    const text = `나의 피부 타입은 "${result.skinType}" 피부예요!\nLUMIQ AI 피부 진단으로 확인해보세요 👉 https://lumiq-bice.vercel.app`
+    if (navigator.share) {
+      await navigator.share({ title: 'LUMIQ 피부 진단 결과', text }).catch(() => null)
+    } else {
+      await navigator.clipboard.writeText(text)
+      toast('링크가 복사됐어요!', 'success')
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -172,9 +182,14 @@ export default function ResultPage() {
               </div>
             )}
 
-            <button onClick={() => setActiveTab('routine')} className="btn-primary">
-              루틴 보기 →
-            </button>
+            <div className="flex gap-3">
+              <button onClick={handleShare} className="btn-secondary flex-1" aria-label="진단 결과 공유">
+                공유하기 🔗
+              </button>
+              <button onClick={() => setActiveTab('routine')} className="btn-primary flex-1">
+                루틴 보기 →
+              </button>
+            </div>
           </div>
         )}
 

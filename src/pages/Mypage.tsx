@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
+import { MypageSkeleton } from '../components/Skeleton'
 import type { UserProfile } from '../types'
 
 const SKIN_TYPES = ['악건성', '건성', '수부지', '복합성', '지성', '민감성', '복합성+민감성', '건성+민감성']
@@ -98,9 +99,21 @@ export default function MyPage() {
   const toggleConcern = (c: string) =>
     setSkinConcerns(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])
 
+  const requestNotification = async () => {
+    if (!('Notification' in window)) { toast('이 브라우저는 알림을 지원하지 않아요', 'error'); return }
+    const permission = await Notification.requestPermission()
+    if (permission === 'granted') toast('알림이 활성화됐어요!', 'success')
+    else toast('알림 권한이 거부됐어요', 'error')
+  }
+
   if (loading) return (
-    <div className="flex items-center justify-center min-h-dvh">
-      <p className="text-sm text-gray-400">불러오는 중...</p>
+    <div className="flex flex-col min-h-dvh pb-20">
+      <header className="glass-nav w-full h-16">
+        <Layout className="flex items-center gap-3 h-full">
+          <h2 className="text-lg font-semibold text-gray-800">마이페이지</h2>
+        </Layout>
+      </header>
+      <MypageSkeleton />
     </div>
   )
 
@@ -224,6 +237,24 @@ export default function MyPage() {
         {/* 계정 설정 */}
         <div className="glass-card rounded-2xl overflow-hidden">
           <p className="text-sm font-semibold text-gray-700 px-5 pt-5 pb-3">계정</p>
+
+          <button onClick={() => navigate('/ingredients')}
+            className="w-full flex items-center justify-between px-5 py-3.5 border-t transition-colors"
+            style={{ borderColor: 'rgba(255,255,255,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(234,243,250,0.4)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <span className="text-sm text-gray-600">성분 검색</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5D5EE" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <button onClick={requestNotification}
+            className="w-full flex items-center justify-between px-5 py-3.5 border-t transition-colors"
+            style={{ borderColor: 'rgba(255,255,255,0.3)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(234,243,250,0.4)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <span className="text-sm text-gray-600">루틴 알림 설정</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B5D5EE" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
 
           <button onClick={handleLogout}
             className="w-full flex items-center justify-between px-5 py-3.5 border-t transition-colors"

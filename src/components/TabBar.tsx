@@ -33,6 +33,14 @@ const tabs = [
       </svg>
     ),
   },
+  {
+    label: '일기', path: '/diary',
+    icon: (active: boolean) => (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? '#89BCE2' : '#B5D5EE'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8M8 11h6"/>
+      </svg>
+    ),
+  },
 ]
 
 export default function TabBar() {

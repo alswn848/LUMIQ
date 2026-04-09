@@ -8,15 +8,17 @@ import PageTransition from './components/PageTransition'
 import ScrollToTop from './components/ScrollToTop'
 import SplashPage from './pages/SplashPage'
 
-import LoginPage        from './pages/LoginPage'
-import AuthCallbackPage from './pages/AuthCallbackPage'
-import OnboardingPage   from './pages/OnboardingPage'
-import HomePage         from './pages/HomePage'
-import DiagnosisPage    from './pages/DiagnosisPage'
-import ResultPage       from './pages/ResultPage'
-import RoutinePage      from './pages/RoutinePage'
-import HistoryPage      from './pages/HistoryPage'
-import MyPage           from './pages/Mypage'
+import LoginPage            from './pages/LoginPage'
+import AuthCallbackPage     from './pages/AuthCallbackPage'
+import OnboardingPage       from './pages/OnboardingPage'
+import HomePage             from './pages/HomePage'
+import DiagnosisPage        from './pages/DiagnosisPage'
+import ResultPage           from './pages/ResultPage'
+import RoutinePage          from './pages/RoutinePage'
+import HistoryPage          from './pages/HistoryPage'
+import MyPage               from './pages/Mypage'
+import DiaryPage            from './pages/DiaryPage'
+import IngredientCheckPage  from './pages/IngredientCheckPage'
 
 export default function App() {
   const [session, setSession]       = useState<Session | null>(null)
@@ -35,6 +37,28 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // 루틴 미완료 알림: 오후 9시 이후 앱 열 때
+  useEffect(() => {
+    if (!session) return
+    const hour = new Date().getHours()
+    if (hour < 21) return
+    if (Notification.permission !== 'granted') return
+    const today = new Date().toISOString().split('T')[0]
+    const notifiedKey = `lumiq_notified_${today}`
+    if (localStorage.getItem(notifiedKey)) return
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('routine_checks').select('is_done').eq('checked_at', today).eq('is_done', true).limit(1)
+        .then(({ data }) => {
+          if (!data || data.length === 0) {
+            new Notification('LUMIQ 루틴 알림 🌿', { body: '오늘 스킨케어 루틴을 아직 완료하지 않았어요!', icon: '/logo.png' })
+            localStorage.setItem(notifiedKey, '1')
+          }
+        })
+    })
+  }, [session])
+
   if (showSplash) return <SplashPage onDone={() => setShowSplash(false)} />
   if (loading) return null
 
@@ -52,7 +76,9 @@ export default function App() {
           <Route path="/result"        element={session  ? <ResultPage />       : <Navigate to="/login" replace />} />
           <Route path="/routine"       element={session  ? <RoutinePage />      : <Navigate to="/login" replace />} />
           <Route path="/history"       element={session  ? <HistoryPage />      : <Navigate to="/login" replace />} />
-          <Route path="/my"            element={session  ? <MyPage />           : <Navigate to="/login" replace />} />
+          <Route path="/my"            element={session  ? <MyPage />              : <Navigate to="/login" replace />} />
+          <Route path="/diary"         element={session  ? <DiaryPage />           : <Navigate to="/login" replace />} />
+          <Route path="/ingredients"   element={session  ? <IngredientCheckPage /> : <Navigate to="/login" replace />} />
           <Route path="*"              element={<Navigate to="/" replace />} />
         </Routes>
       </PageTransition>

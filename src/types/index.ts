@@ -69,6 +69,15 @@ export interface RoutineCheck {
   is_done: boolean
 }
 
+export interface DiaryEntry {
+  id: string
+  user_id: string
+  date: string
+  condition: number
+  memo?: string
+  created_at: string
+}
+
 export interface UserProfile {
   id: string
   user_id: string
