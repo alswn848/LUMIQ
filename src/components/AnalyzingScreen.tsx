@@ -93,21 +93,19 @@ export default function AnalyzingScreen({ visible, onHidden }: Props) {
           style={{ width: 80, height: 80, objectFit: 'contain' }}
         />
 
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-base font-medium"
-              style={{ color: '#1A2E24', fontFamily: 'Outfit, Noto Sans KR, sans-serif' }}
-            >
-              AI가 피부를 분석하고 있어요
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="analyzing-dot" style={{ animationDelay: '0s' }} />
-              <span className="analyzing-dot" style={{ animationDelay: '0.22s' }} />
-              <span className="analyzing-dot" style={{ animationDelay: '0.44s' }} />
-            </span>
-          </div>
+        <span className="flex items-center gap-1.5">
+          <span className="analyzing-dot" style={{ animationDelay: '0s' }} />
+          <span className="analyzing-dot" style={{ animationDelay: '0.22s' }} />
+          <span className="analyzing-dot" style={{ animationDelay: '0.44s' }} />
+        </span>
 
+        <div className="flex flex-col items-center gap-2">
+          <span
+            className="text-base font-medium"
+            style={{ color: '#1A2E24', fontFamily: 'Outfit, Noto Sans KR, sans-serif' }}
+          >
+            AI가 피부를 분석하고 있어요
+          </span>
           <p
             className="text-sm"
             style={{ color: '#7BB898', fontFamily: 'Outfit, Noto Sans KR, sans-serif' }}
