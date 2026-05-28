@@ -4,7 +4,8 @@ import { analyzeSkin, checkRepeatDiagnosis } from '../lib/groq'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
-import type { SkinTypeValue } from '../types'
+import AnalyzingScreen from '../components/AnalyzingScreen'
+import type { AISkinResult, SkinTypeValue } from '../types'
 
 export default function DiagnosisPage() {
   const navigate = useNavigate()
@@ -12,8 +13,10 @@ export default function DiagnosisPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showAnalyzing, setShowAnalyzing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pendingNav = useRef<{ result: AISkinResult; diagnosisId: string } | null>(null)
 
   const isValid = input.trim().length >= 10
 
@@ -36,10 +39,20 @@ export default function DiagnosisPage() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  const handleAnalyzingHidden = () => {
+    if (pendingNav.current) {
+      const { result, diagnosisId } = pendingNav.current
+      pendingNav.current = null
+      navigate('/result', { state: { result, diagnosisId } })
+    }
+    setLoading(false)
+  }
+
   const handleAnalyze = async () => {
     if (!isValid || loading) return
     setError(null)
     setLoading(true)
+    setShowAnalyzing(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -87,18 +100,21 @@ export default function DiagnosisPage() {
         toast('AI 분석 완료!', 'success')
       }
 
-      navigate('/result', { state: { result, diagnosisId: diagnosis.id } })
+      pendingNav.current = { result, diagnosisId: diagnosis.id }
+      setShowAnalyzing(false)
 
     } catch (err) {
       const message = err instanceof Error ? err.message : 'AI 분석 중 오류가 발생했어요.'
       setError(message)
       toast(imageFile ? '사진을 확인해주세요' : '분석에 실패했어요', 'error')
-    } finally {
+      setShowAnalyzing(false)
       setLoading(false)
     }
   }
 
   return (
+    <>
+    <AnalyzingScreen visible={showAnalyzing} onHidden={handleAnalyzingHidden} />
     <div className="flex flex-col min-h-dvh pb-20">
       <header className="glass-nav w-full h-16">
         <Layout className="flex flex-col justify-center h-full">
@@ -232,5 +248,6 @@ export default function DiagnosisPage() {
         </div>
       </Layout>
     </div>
+    </>
   )
 }

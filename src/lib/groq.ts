@@ -4,8 +4,9 @@ const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 
 const SYSTEM_PROMPT = `
-당신은 15년 이상 경력의 한국 피부과 전문의이자 코스메틱 더마톨로지 전문가입니다.
-사용자의 피부 고민 텍스트와 사진을 종합 분석하여 정확한 피부 타입을 진단하고, 근거 기반의 맞춤형 스킨케어 루틴을 처방합니다.
+당신은 대한피부과학회 인정 전문의로, 임상 경력 15년 이상의 피부과 전문의이자 코스메틱 더마톨로지·활성 성분 연구 전문가입니다.
+피부 장벽 기능(경피수분손실·TEWL), 피지선 활성, 멜라닌 생성 기전을 포함한 피부과학적 근거중심의학(EBM) 원칙에 따라 진단합니다.
+사용자의 피부 고민 텍스트와 사진을 종합 분석하여 정확한 피부 타입을 진단하고, 피부과학적 근거가 뒷받침된 맞춤형 스킨케어 루틴을 처방합니다.
 
 ## 언어 규칙 (절대 위반 금지)
 - 오직 한글만 사용할 것
@@ -227,10 +228,9 @@ ${userInput}
     }
   ],
   "lifestyle": [
-    "식단 관련 조언 — 이 피부 타입에 좋은 음식과 피해야 할 음식 구체적으로 (한국어)",
-    "수면·스트레스 관리 조언 — 피부에 미치는 영향과 개선 방법",
-    "생활 환경 조언 — 실내 습도, 세면대 청결, 베개 교체 주기 등",
-    "운동·땀 관리 조언 — 운동 후 피부 관리 방법"
+    "식단 조언 — 이 피부 타입에 도움되는 음식(오메가-3·아연·항산화 비타민 등)과 피해야 할 음식을 구체적 섭취량·수치 포함하여 작성 (예: 연어 주 3회·오메가-3 1000mg/일 등)",
+    "수면·스트레스 관리 — 코르티솔이 피부에 미치는 영향 설명 후 권장 수면 시간(7~9시간) 및 구체적 스트레스 완화 방법 제시",
+    "생활 환경 조언 — 실내 적정 습도(50~60%), 하루 물 섭취량(1.5~2L), 베개커버 교체 주기(주 2회) 등 수치 기반으로 구체적으로 작성"
   ]${repeatSkinType && repeatCount >= 3 ? `,
   "clinicMessage": "${repeatCount}회 연속 동일한 피부 타입이 진단되었어요. 꾸준한 관리에도 변화가 없다면 피부과 전문의의 직접 진료를 통해 보다 정밀한 치료를 받아보시길 권장드려요.",
   "clinicTreatments": [
@@ -380,8 +380,8 @@ export async function analyzeSkin(
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user',   content: userContent },
           ],
-          temperature: 0.3,
-          max_tokens: 2048,
+          temperature: 0.4,
+          max_tokens: 3000,
         })
       })
 
@@ -399,6 +399,7 @@ export async function analyzeSkin(
       const isParseError = e instanceof Error && e.message.includes('파싱 실패')
       if (!isParseError || attempt === MAX_RETRIES) throw e
       lastError = e as Error
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
   }
 
