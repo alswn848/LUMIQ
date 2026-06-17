@@ -333,6 +333,60 @@ function parseAIResponse(text: string): AISkinResult {
   }
 }
 
+export interface IngredientCheckResult {
+  status: 'good' | 'bad' | 'unknown'
+  reason: string
+}
+
+export async function analyzeIngredient(
+  ingredientName: string,
+  skinType: string
+): Promise<IngredientCheckResult> {
+  const prompt = `당신은 피부과 전문 코스메틱 성분 분석가입니다.
+아래 성분이 "${skinType}" 피부에 어떤 영향을 미치는지 분석하세요.
+
+성분명: ${ingredientName}
+
+반드시 아래 JSON만 반환하세요 (다른 텍스트 절대 금지):
+{
+  "status": "good" 또는 "bad" 또는 "unknown",
+  "reason": "이 피부 타입에 미치는 영향을 2-3문장으로 설명 (한국어)"
+}
+
+status 기준:
+- good: 이 피부 타입에 유익하거나 권장되는 성분
+- bad: 이 피부 타입에 자극이 되거나 피해야 하는 성분
+- unknown: 효과가 중립적이거나 피부 타입과 무관한 성분`
+
+  const response = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 300,
+    }),
+  })
+
+  if (!response.ok) throw new Error(`API 오류: ${response.status}`)
+
+  const data: GroqResponse = await response.json()
+  const text = data.choices?.[0]?.message?.content
+  if (!text) throw new Error('AI 응답이 비어있어요')
+
+  const cleaned = text.replace(/```json|```/g, '').trim()
+  const match = cleaned.match(/\{[\s\S]*\}/)
+  if (!match) throw new Error('응답 파싱 실패')
+
+  const parsed = JSON.parse(match[0]) as IngredientCheckResult
+  if (!['good', 'bad', 'unknown'].includes(parsed.status)) parsed.status = 'unknown'
+  return parsed
+}
+
 export async function analyzeSkin(
   userInput: string,
   imageFile?: File | null,

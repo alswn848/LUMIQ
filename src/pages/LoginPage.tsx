@@ -34,8 +34,9 @@ export default function LoginPage() {
           navigate(profile ? '/' : '/onboarding')
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '오류가 발생했어요.')
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message
+      setError(msg || '오류가 발생했어요.')
     } finally { setLoading(false) }
   }
 

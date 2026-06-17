@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { analyzeIngredient } from '../lib/groq'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
 import type { AISkinResult } from '../types'
@@ -11,6 +12,7 @@ interface IngredientResult {
   name: string
   status: CheckResult
   reason: string
+  aiAnalyzed?: boolean
 }
 
 export default function IngredientCheckPage() {
@@ -20,6 +22,7 @@ export default function IngredientCheckPage() {
   const [skinResult, setSkinResult] = useState<AISkinResult | null>(null)
   const [skinType, setSkinType] = useState('')
   const [loadingData, setLoadingData] = useState(true)
+  const [analyzing, setAnalyzing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const fetchLatestDiagnosis = useCallback(async () => {
@@ -45,10 +48,11 @@ export default function IngredientCheckPage() {
 
   useEffect(() => { fetchLatestDiagnosis() }, [fetchLatestDiagnosis])
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     const q = query.trim()
-    if (!q) return
-    if (!skinResult) {
+    if (!q || analyzing) return
+
+    if (!skinResult || !skinType) {
       setResult({ name: q, status: 'unknown', reason: '진단 기록이 없어서 정확한 분석이 어려워요. 먼저 AI 진단을 받아보세요.' })
       return
     }
@@ -68,7 +72,17 @@ export default function IngredientCheckPage() {
       return
     }
 
-    setResult({ name: q, status: 'unknown', reason: `${skinType} 피부 기준으로 추천/주의 목록에 없는 성분이에요. 소량 테스트 후 사용을 권장해요.` })
+    // 로컬 목록에 없으면 AI에 직접 분석 요청
+    setAnalyzing(true)
+    setResult(null)
+    try {
+      const aiResult = await analyzeIngredient(q, skinType)
+      setResult({ name: q, status: aiResult.status, reason: aiResult.reason, aiAnalyzed: true })
+    } catch {
+      toast('성분 분석에 실패했어요. 다시 시도해주세요.', 'error')
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   const statusConfig = {
@@ -113,21 +127,33 @@ export default function IngredientCheckPage() {
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCheck()}
-            placeholder="성분명을 입력해보세요 (예: 히알루론산)"
+            onKeyDown={e => e.key === 'Enter' && void handleCheck()}
+            placeholder="성분명을 입력해보세요 (예: 히알루론산, PDRN)"
             className="input-field flex-1"
             aria-label="성분 검색"
           />
           <button
-            onClick={handleCheck}
-            disabled={!query.trim()}
+            onClick={() => void handleCheck()}
+            disabled={!query.trim() || analyzing}
             className="px-5 h-13 rounded-2xl text-sm font-medium text-white disabled:opacity-40 transition-all"
             style={{ background: 'linear-gradient(135deg, #89BCE2, #5A9AC8)', minWidth: 64 }}
             aria-label="검색"
           >
-            검색
+            {analyzing ? '분석 중' : '검색'}
           </button>
         </div>
+
+        {/* 분석 중 로딩 */}
+        {analyzing && (
+          <div className="rounded-2xl p-5 flex items-center gap-3 fade-in" style={{ background: 'rgba(137,188,226,0.08)', border: '1px solid rgba(137,188,226,0.2)' }}>
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div key={i} className="w-2 h-2 rounded-full animate-bounce" style={{ background: '#89BCE2', animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+            <p className="text-sm text-gray-500">AI가 성분을 분석하고 있어요...</p>
+          </div>
+        )}
 
         {/* 결과 */}
         {result && (
@@ -137,10 +163,15 @@ export default function IngredientCheckPage() {
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">{statusConfig[result.status].emoji}</span>
-              <div>
-                <p className="text-base font-semibold" style={{ color: statusConfig[result.status].color }}>
-                  {statusConfig[result.status].label}
-                </p>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-semibold" style={{ color: statusConfig[result.status].color }}>
+                    {statusConfig[result.status].label}
+                  </p>
+                  {result.aiAnalyzed && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(137,188,226,0.15)', color: '#5A9AC8' }}>AI 분석</span>
+                  )}
+                </div>
                 <p className="text-sm font-medium text-gray-700">{result.name}</p>
               </div>
             </div>
