@@ -1,10 +1,68 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabase'
 import Layout from '../components/Layout'
 import { toast } from '../components/Toast'
 import { RoutinePageSkeleton } from '../components/Skeleton'
 import type { Routine, RoutineCheck, RoutineStep, RoutineSteps } from '../types'
+
+function SortableStepItem({
+  id, step, idx, type, onRename, onDelete,
+}: {
+  id: string
+  step: RoutineStep
+  idx: number
+  type: 'morning' | 'night'
+  onRename: (type: 'morning' | 'night', idx: number, name: string) => void
+  onDelete: (type: 'morning' | 'night', idx: number) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="glass-card rounded-2xl p-4 flex items-center gap-3">
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none"
+        aria-label="드래그로 순서 변경"
+        style={{ color: '#B5D5EE' }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/>
+        </svg>
+      </button>
+      <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+        style={{ background: 'rgba(137,188,226,0.2)', color: '#5A9AC8' }}>{idx + 1}</div>
+      <div className="flex-1">
+        <input
+          value={step.name}
+          onChange={e => onRename(type, idx, e.target.value)}
+          className="input-field w-full"
+          style={{ height: 36, fontSize: 13 }}
+          aria-label={`${idx + 1}번 단계 이름`}
+        />
+      </div>
+      <button onClick={() => onDelete(type, idx)} className="text-red-300 hover:text-red-400 transition-colors flex-shrink-0" aria-label="단계 삭제">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  )
+}
 
 const NIGHT_OFFSET = 100
 
@@ -122,14 +180,19 @@ export default function RoutinePage() {
     else setEditNight(prev => prev.filter((_, i) => i !== idx))
   }
 
-  const moveStep = (type: 'morning' | 'night', idx: number, dir: 'up' | 'down') => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
+
+  const handleDragEnd = (type: 'morning' | 'night') => (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     const setter = type === 'morning' ? setEditMorning : setEditNight
     setter(prev => {
-      const arr = [...prev]
-      const target = dir === 'up' ? idx - 1 : idx + 1
-      if (target < 0 || target >= arr.length) return arr
-      ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
-      return arr
+      const oldIdx = prev.findIndex((_, i) => `${type}-${i}` === active.id)
+      const newIdx = prev.findIndex((_, i) => `${type}-${i}` === over.id)
+      return arrayMove(prev, oldIdx, newIdx)
     })
   }
 
@@ -239,28 +302,21 @@ export default function RoutinePage() {
     setNewName: (v: string) => void
   ) => (
     <div className="flex flex-col gap-2">
-      {editList.map((step, idx) => (
-        <div key={idx} className="glass-card rounded-2xl p-4 flex items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <button onClick={() => moveStep(type, idx, 'up')} disabled={idx === 0} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="위로">▲</button>
-            <button onClick={() => moveStep(type, idx, 'down')} disabled={idx === editList.length - 1} className="text-gray-300 disabled:opacity-30 leading-none" aria-label="아래로">▼</button>
-          </div>
-          <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
-            style={{ background: 'rgba(137,188,226,0.2)', color: '#5A9AC8' }}>{idx + 1}</div>
-          <div className="flex-1">
-            <input
-              value={step.name}
-              onChange={e => renameStep(type, idx, e.target.value)}
-              className="input-field w-full"
-              style={{ height: 36, fontSize: 13 }}
-              aria-label={`${idx + 1}번 단계 이름`}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(type)}>
+        <SortableContext items={editList.map((_, i) => `${type}-${i}`)} strategy={verticalListSortingStrategy}>
+          {editList.map((step, idx) => (
+            <SortableStepItem
+              key={`${type}-${idx}`}
+              id={`${type}-${idx}`}
+              step={step}
+              idx={idx}
+              type={type}
+              onRename={renameStep}
+              onDelete={deleteStep}
             />
-          </div>
-          <button onClick={() => deleteStep(type, idx)} className="text-red-300 hover:text-red-400 transition-colors flex-shrink-0" aria-label="단계 삭제">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
-        </div>
-      ))}
+          ))}
+        </SortableContext>
+      </DndContext>
       <div className="flex gap-2">
         <input
           value={newName}
