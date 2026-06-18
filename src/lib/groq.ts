@@ -389,6 +389,7 @@ status 기준:
 
   const parsed = JSON.parse(match[0]) as IngredientCheckResult
   if (!['good', 'bad', 'unknown'].includes(parsed.status)) parsed.status = 'unknown'
+  parsed.reason = (removeNonKoreanCJK(parsed.reason) as string)
   return parsed
 }
 
