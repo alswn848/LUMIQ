@@ -345,9 +345,8 @@ export async function analyzeIngredient(
   const prompt = `당신은 피부과 전문 코스메틱 성분 분석가입니다.
 
 ## 언어 규칙 (절대 위반 금지)
-- 오직 한국어만 사용할 것
-- 영어 단어, 영어 성분명, 한자, 일본어 사용 완전 금지
-- 성분명은 반드시 한국어 통용명으로만 표기 (예: PDRN → 폴리디옥시리보뉴클레오타이드, Retinol → 레티놀, Niacinamide → 나이아신아마이드)
+- 한국어와 영어만 사용할 것
+- 한자(漢字), 일본어(히라가나·가타카나), 중국어 사용 완전 금지
 
 아래 성분이 "${skinType}" 피부에 어떤 영향을 미치는지 분석하세요.
 
@@ -356,7 +355,7 @@ export async function analyzeIngredient(
 반드시 아래 JSON만 반환하세요 (다른 텍스트 절대 금지):
 {
   "status": "good" 또는 "bad" 또는 "unknown",
-  "reason": "2-3문장, 반드시 한국어로만 작성, 영어 단어 한 글자도 포함 금지"
+  "reason": "이 피부 타입에 미치는 영향을 2-3문장으로 설명 (한국어와 영어만 사용)"
 }
 
 status 기준:
